@@ -46,13 +46,14 @@ metadata:
 3. 建 job（只落文件，不启动）：
 
    ```bash
-   bash {baseDir}/scripts/new-job.sh "<url>" --no-start \
+   bash {baseDir}/scripts/new-job.sh "<url>" \
      --podcast "<小宇宙节目id>" \
      --title "<中文播客名>" \
      --description "<一句话中文简介>" \
      --session-key "<当前会话 key>"
    ```
 
+   - 默认**只建 job 文件、不启动 worker**；加 `--start` 才会顺带起 worker（CI/脚本场景）。
    - `"existing": true` → 这个视频已在跑，别重复起，直接回执。
    - `stage: failed` → 先按"排障"处理，重跑加 `--retry`。
    - 默认草稿；用户明确要求公开发布才加 `--publish`。

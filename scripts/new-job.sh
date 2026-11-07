@@ -12,8 +12,10 @@
 #   --publish               真正发布到小宇宙(默认是草稿,开发期禁止公开发布)
 #   --draft                 显式指定草稿(默认行为)
 #   --retry                 已有 job 是 failed 时,重置并重跑
-#   --no-start              只建 job 文件,不启动 worker
-#   --wait                  前台等 worker 跑完(给脚本/CI 用),超时退出
+#   --start                 建完 job 后立刻起 worker(默认只建 job 文件,不起 worker)
+#                           注意:在 OpenClaw 的 exec 里必须用 background 托管跑 worker.py,
+#                           脚本里的 setsid 只是兜底,agent 场景请保持默认 + 另起后台任务
+#   --wait                  前台等 worker 跑完(需配合 --start),给脚本/CI 用
 #   --timeout <秒>          --wait 的超时,默认 1800
 #
 # 输出:一行 JSON,便于 agent 解析。
@@ -37,7 +39,7 @@ SESSION_KEY=""
 PODCAST_ID="$DEFAULT_PODCAST_ID"
 DRAFT=1
 RETRY=0
-START=1
+START=0
 WAIT=0
 WAIT_TIMEOUT=1800
 
@@ -60,6 +62,7 @@ while [ $# -gt 0 ]; do
     --draft) DRAFT=1; shift ;;
     --retry) RETRY=1; shift ;;
     --no-start) START=0; shift ;;
+    --start) START=1; shift ;;
     --wait) WAIT=1; shift ;;
     --timeout) WAIT_TIMEOUT="${2:-1800}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;

@@ -65,8 +65,7 @@ export YT2PODCAST_PODCAST_ID="<podcast id>"
 bash scripts/new-job.sh "https://youtu.be/<id>" \
   --podcast "<podcast id>" \
   --title "中文播客名" \
-  --description "一句话简介" \
-  --no-start
+  --description "一句话简介"
 
 # 跑流水线（在生产里请放到后台托管，别用 nohup，见"已知坑"）
 python3 scripts/worker.py <video_id>
