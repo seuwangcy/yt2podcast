@@ -215,11 +215,15 @@ python3 {baseDir}/scripts/resume-stalled.py --resume --dry-run   # 只演练不�
 巡检建议（心跳/定时任务里）：
 
 ```bash
-python3 {baseDir}/scripts/resume-stalled.py || true    # 退出码 10 表示有待续跑
+python3 {baseDir}/scripts/resume-stalled.py --quiet    # 退出码 10 = 有待续跑;没情况零输出
 ```
 
 发现卡住的 job 时，用宿主后台托管方式启动 `worker.py <job_id>`（脚本已把 `stage` / `stages_done` 改好，
 直接跑就是从断点继续），或直接 `--resume`。续跑成功/失败都会照常发通知。
+
+**怎么接自动化由用户决定**：心跳巡检 / cron / 手动，三种接法与命令见
+[docs/automation.md](docs/automation.md)。本 skill **不会**自己往系统里装 cron/systemd/launchd，
+也不会改用户的 `HEARTBEAT.md`——那是用户自己的配置。
 
 **干扰排查**：`--dry-run` 只跑状态机不调外部命令，可用来验证 job/状态流转。
 

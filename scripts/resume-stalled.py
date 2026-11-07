@@ -143,6 +143,8 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--max-age", type=float, default=20.0, help="多少分钟没更新算卡住(默认 20)")
     parser.add_argument("--resume", action="store_true", help="就地续跑(前台顺序执行)")
     parser.add_argument("--dry-run", action="store_true", help="只看不动")
+    parser.add_argument("--quiet", action="store_true",
+                        help="没有卡住的 job 时不输出任何内容(心跳/定时任务里用,省 token)")
     args = parser.parse_args(argv)
 
     if not JOBS_DIR.is_dir():
@@ -150,7 +152,11 @@ def main(argv: List[str]) -> int:
         return 0
 
     stalled = scan(args.max_age)
-    print(json.dumps({"ok": True, "stalled": stalled, "count": len(stalled)}, ensure_ascii=False, indent=2))
+
+    if stalled:
+        print(json.dumps({"ok": True, "stalled": stalled, "count": len(stalled)}, ensure_ascii=False, indent=2))
+    elif not args.quiet:
+        print(json.dumps({"ok": True, "stalled": [], "count": 0}, ensure_ascii=False, indent=2))
 
     if not stalled:
         return 0

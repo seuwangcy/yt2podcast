@@ -2,6 +2,13 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.4] - 2026-11-07
+
+### Added
+- `resume-stalled.py --quiet`：无卡住 job 时零输出，适合放进心跳/定时任务，不产生噪音与多余 token。
+- `docs/automation.md`：卡住自愈的三种接法（心跳巡检 / `openclaw cron` / 手动），
+  并说明为什么 skill 不自行安装定时任务、不改用户的 `HEARTBEAT.md`。
+
 ## [0.1.3] - 2026-11-07
 
 ### Added
