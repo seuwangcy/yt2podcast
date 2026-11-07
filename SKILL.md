@@ -1,6 +1,6 @@
 ---
 name: yt2podcast
-description: 把 YouTube 视频变成中文音频播客，用 NotebookLM Audio Overview 生成、ffmpeg 转码，再上传小宇宙；默认只存草稿，用户明确要求时才公开发布；完成后回推一条结果通知。用户从微信/聊天里发来 YouTube 链接时使用。
+description: 把 YouTube 视频变成中文音频播客：NotebookLM Audio Overview 生成、ffmpeg 转码，再上传小宇宙（上传即进入平台审核，通过后自动上线；可用 --hold-upload 在上传前停下）；完成后回推一条结果通知。用户从微信/聊天里发来 YouTube 链接时使用。
 metadata:
   openclaw:
     requires:
