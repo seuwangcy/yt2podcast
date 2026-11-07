@@ -86,11 +86,17 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
 
 4. **启动 worker —— 必须用后台托管，不要用 nohup**：
 
-   用 exec 工具以 `background: true` 运行：
+   用 exec 工具以 `background: true` + `timeoutSeconds: 0` 运行：
 
    ```bash
    python3 {baseDir}/scripts/worker.py <video_id>
    ```
+
+   - `timeoutSeconds: 0` 必须给：否则长视频（生成+下载可能 30 分钟以上）会被 exec 的默认超时砍断。
+   - 这个后台服务**不会**因为 agent 回合结束而中断，但**会**随 Gateway 重启/更新/退出而终止
+     （OpenClaw 文档明确：background 不保证跨宿主重启存活）。中断不可怕——job 文件记着
+     `notebook_id` / `source_id` / `stages_done`，重启后用 `worker.py <video_id>` 从断点续跑，
+     不会重复消耗 NotebookLM 生成配额。
 
    > ⚠️ 关键坑：OpenClaw 的 exec 在回合结束时会 kill 整个进程组（日志里能看到
    > `treeOwnership: process-group`）。普通 `nohup ... &` 起的 worker 会被立刻杀掉，
@@ -188,6 +194,32 @@ python3 {baseDir}/scripts/worker.py <video_id> --notify-only
 `stages_done` 补上已完成阶段、`stage` 改成下一阶段，再直接 `python3 worker.py <video_id>`。
 
 **卡住判断**：`stage` 不是 done/failed 且 `updated_at` 超过 20 分钟 → 看 worker.log 最后一行再决定是否重跑。
+
+**卡住自愈（Gateway 重启/宿主被回收后必用）**
+
+worker 活在宿主的生命周期里，Gateway 重启、Mac 重启、宿主被回收都会让它中途消失，
+job 就停在某个 stage 且不会再有通知。job 文件是幂等断点，所以只需"发现 + 重新调用"：
+
+```bash
+python3 {baseDir}/scripts/resume-stalled.py                 # 只检查，输出 JSON（退出码 10 = 有卡住的）
+python3 {baseDir}/scripts/resume-stalled.py --max-age 20    # 自定义判定阈值（分钟）
+python3 {baseDir}/scripts/resume-stalled.py --resume        # 就地续跑（前台顺序执行）
+python3 {baseDir}/scripts/resume-stalled.py --resume --dry-run   # 只演练不落盘
+```
+
+判定逻辑：没有存活的 `worker.py <job_id>` 进程 + `updated_at` 超过阈值 → 卡住。
+续跑起点按落盘产物推断（产物即真相）：
+`episode.m4a` 在 → `uploading`；`audio.wav` 在 → `postprocess`；有 `source_id` → `generating`；否则 `sourcing`。
+这样已生成/已下载的产物不会重做，**不会重复消耗 NotebookLM 配额**。
+
+巡检建议（心跳/定时任务里）：
+
+```bash
+python3 {baseDir}/scripts/resume-stalled.py || true    # 退出码 10 表示有待续跑
+```
+
+发现卡住的 job 时，用宿主后台托管方式启动 `worker.py <job_id>`（脚本已把 `stage` / `stages_done` 改好，
+直接跑就是从断点继续），或直接 `--resume`。续跑成功/失败都会照常发通知。
 
 **干扰排查**：`--dry-run` 只跑状态机不调外部命令，可用来验证 job/状态流转。
 

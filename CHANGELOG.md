@@ -2,6 +2,19 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.3] - 2026-11-07
+
+### Added
+- `scripts/resume-stalled.py`：卡住自愈。找出"没在跑也没结束"的 job（无存活 worker 进程且
+  `updated_at` 超阈值），按落盘产物推断续跑起点（m4a→uploading / wav→postprocess /
+  有 source_id→generating / 否则 sourcing），改好 `stage`+`stages_done` 后可一键续跑。
+  解决 Gateway 重启、Mac 重启、宿主回收导致 worker 中途消失、job 静默停摆的问题；
+  续跑复用已有产物与 notebook，不重复消耗生成配额。
+
+### Changed
+- 文档明确 worker 生命周期：用 exec `background: true` + `timeoutSeconds: 0` 启动，
+  不随回合结束而死，但会随 Gateway 重启而终止 → 用卡住自愈补齐。
+
 ## [0.1.2] - 2026-11-07
 
 ### Changed

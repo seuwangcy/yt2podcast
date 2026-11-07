@@ -77,6 +77,10 @@ python3 scripts/worker.py <video_id> --rerun
 # 只补发通知
 python3 scripts/worker.py <video_id> --notify-only
 
+# 卡住自愈:找出"没在跑也没结束"的 job(Gateway/机器重启后必用),可一键续跑
+python3 scripts/resume-stalled.py            # 只检查,退出码 10 = 有待处理
+python3 scripts/resume-stalled.py --resume   # 按落盘产物续跑,不重复消耗配额
+
 # 离线自检状态机
 python3 scripts/worker.py <video_id> --dry-run
 ```
@@ -109,6 +113,10 @@ cron/systemd**）与"无遥测"承诺，都写在 [SECURITY.md](./SECURITY.md)�
 
 源视频 2 小时 14 分（Cheeky Pint，Zuckerberg 访谈）：
 
+> 运行方式：worker 必须由宿主的后台托管能力启动（OpenClaw 用 exec `background: true` +
+> `timeoutSeconds: 0`）。它不会随 agent 回合结束而死，但会随 Gateway 重启/退出而终止；
+> 中断后 `worker.py <video_id>` 可从断点续跑，不重复消耗生成配额。
+
 | 阶段 | 耗时 |
 | --- | --- |
 | sourcing（建本 + 加源 + 摘要） | 约 25 秒 |
@@ -123,8 +131,9 @@ cron/systemd**）与"无遥测"承诺，都写在 [SECURITY.md](./SECURITY.md)�
 yt2podcast/
 ├── SKILL.md            # agent 读的流程说明（核心）
 ├── scripts/
-│   ├── new-job.sh      # 建 job +（可选）启动 worker
-│   └── worker.py       # 五阶段流水线（不依赖 LLM）
+│   ├── new-job.sh        # 只建 job 文件（不启动 worker）
+│   ├── worker.py         # 五阶段流水线（不依赖 LLM）
+│   └── resume-stalled.py # 卡住自愈：发现 + 断点续跑
 ├── CHANGELOG.md
 └── LICENSE
 ```
