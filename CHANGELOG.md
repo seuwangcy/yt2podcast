@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.5] - 2026-11-07
+
+### Added
+- `scripts/doctor.sh`：环境自检。检查命令行依赖、opencli adapter（notebooklm / xiaoyuzhou）、
+  NotebookLM 登录态、小宇宙主播后台登录态（借历史单集状态探活）、节目 id、Google 存储可达性
+  （自动探测系统代理）、数据目录可写性。每项都附带**具体修复命令**，退出码 0/1/2 区分
+  全绿 / 有阻塞 / 仅警告。`--json` 供 agent 读取。
+
+### Changed
+- `SKILL.md` 增加"第 0 步：环境自检"，明确前置条件不满足时不要建 job（避免白耗配额）；
+  `NEED_LOGIN` 的处理指向 doctor。
+
 ## [0.1.4] - 2026-11-07
 
 ### Added

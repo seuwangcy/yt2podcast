@@ -46,6 +46,13 @@ ln -sfn ~/.openclaw/workspace/coding/yt2podcast ~/.openclaw/skills/yt2podcast
 openclaw skills list      # 出现 yt2podcast 即安装成功
 ```
 
+安装后先做环境自检（逐项检查，并把修复命令直接打出来）：
+
+```bash
+bash scripts/doctor.sh          # 逐项 ✅/❌；退出码 1 = 有阻塞项
+bash scripts/doctor.sh --json   # 机读
+```
+
 设置你的小宇宙节目 id（代码里没有默认值）：
 
 ```bash

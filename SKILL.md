@@ -60,6 +60,24 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
 | job 文件 | `<root>/jobs/<video_id>.json` |
 | job 目录 | `<root>/jobs/<video_id>/`（worker.log / audio.wav / cover.jpg / episode.m4a / notify.json） |
 
+## 第 0 步：环境自检（首次使用、换机器、报 NEED_LOGIN 时先跑）
+
+```bash
+bash {baseDir}/scripts/doctor.sh          # 人看：逐项 ✅/❌ 带修复命令
+bash {baseDir}/scripts/doctor.sh --json   # 机读
+```
+
+会逐项检查并给出**具体修复命令**：
+- 命令行依赖：`opencli` / `ffmpeg` / `ffprobe` / `python3` / `openclaw`
+- opencli adapter：`notebooklm`、`xiaoyuzhou` 是否装了
+- 登录态：NotebookLM（`notebooklm whoami`）、小宇宙主播后台（用历史单集的状态查询探活）
+- 配置：`YT2PODCAST_PODCAST_ID` 有没有设
+- 网络：`lh3.googleusercontent.com` 是否可达（自动探测系统代理）
+- 数据目录是否可写
+
+退出码：`0` 全绿、`1` 有阻塞项、`2` 只有警告。
+前置条件不满足时**先别建 job**——不然会白跑一趟、浪费 NotebookLM 生成配额。
+
 ## 第一步：收到链接时
 
 1. 从消息里挑出 YouTube 链接（`youtu.be/`、`watch?v=`、`/shorts/`、`/live/` 都行；`?si=` 之类的追踪参数由脚本自动去掉）。
@@ -146,7 +164,7 @@ worker 结束时执行 `openclaw system event --text "yt2podcast {...}" --mode n
 
 | error.code | 含义 | 处理 |
 | --- | --- | --- |
-| `NEED_LOGIN` | NotebookLM / 小宇宙掉登录 | 重新登录 Chrome 后 `--rerun` |
+| `NEED_LOGIN` | NotebookLM / 小宇宙掉登录 | 先跑 `scripts/doctor.sh` 看是哪一侧掉了，登录后 `--rerun` |
 | `QUOTA_EXHAUSTED` | NotebookLM 每日生成配额用完 | 等第二天 |
 | `ADAPTER_MISSING` | opencli adapter 没装 | 先装 adapter |
 | `COMMAND_EXEC` + `fetch failed` | 下载音频时 Google 存储不可达 | 配代理后重跑（见下） |
