@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.0] - 2026-11-08
+
+### Changed
+- **默认流程改为两段式（重大行为变更）**：worker 生成到 `episode.m4a` 后停下，
+  `stage=awaiting_upload` 并发一条"音频已就绪、等确认"的通知；用户确认后跑
+  `worker.py <job_id> --upload` 才真正上传。原因：小宇宙托管单集没有真正的草稿箱——
+  上传即进入平台审核，**审核通过后自动上线**（实测：全程未点发布按钮，第一集仍变成
+  `published/APPROVED`），上传是不可撤回的对外动作，必须由人拍板。
+- 新增 `new-job.sh --auto-upload`：显式选择"生成完直接上传"的一条龙模式。
+- 通知载荷新增 `needs_confirmation` 与 `final_file`，方便在确认阶段把本地音频交给用户试听。
+- `resume-stalled.py` 把 `awaiting_upload` 视为"等人工确认"，不会自动续跑。
+
 ## [0.1.9] - 2026-11-08
 
 ### Fixed

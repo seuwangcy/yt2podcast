@@ -33,7 +33,8 @@ WORKER = SKILL_DIR / "worker.py"
 ROOT = Path(os.environ.get("YT2PODCAST_ROOT", "~/.openclaw/workspace/yt2podcast")).expanduser()
 JOBS_DIR = ROOT / "jobs"
 STAGES = ["sourcing", "generating", "postprocess", "uploading"]
-TERMINAL = ("done", "failed")
+# awaiting_upload: 音频已就绪、在等用户点头上传 —— 不是卡住,不许自动续跑
+TERMINAL = ("done", "failed", "awaiting_upload")
 
 
 def parse_ts(value: Optional[str]) -> Optional[float]:

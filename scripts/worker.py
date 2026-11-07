@@ -925,6 +925,9 @@ def build_payload(job: Job, ok: bool) -> Dict[str, Any]:
         "size_text": human_size(data.get("final_bytes")),
         "podcast_id": data.get("podcast_id") or DEFAULT_PODCAST_ID,
         "draft": bool(data.get("draft")),
+        # 是否需要用户确认后才上传
+        "needs_confirmation": data.get("stage") == "awaiting_upload",
+        "final_file": data.get("final_file"),
         # 平台真实状态(draft / reviewing / published);draft 标志只代表"没显式点发布"
         "episode_status": data.get("episode_status"),
         "review_status": data.get("review_status"),
@@ -1063,7 +1066,7 @@ def preflight(job: Job) -> None:
         )
 
 
-def run_pipeline(job: Job, notify: bool = True) -> int:
+def run_pipeline(job: Job, notify: bool = True, allow_upload: bool = False) -> int:
     data = job.data
     if data.get("stage") == "done":
         log(job, "job 已完成,直接退出(幂等)")
@@ -1090,6 +1093,17 @@ def run_pipeline(job: Job, notify: bool = True) -> int:
         elif stage == "postprocess":
             stage_postprocess(job)
         elif stage == "uploading":
+            # 上传即进入平台审核,审核通过后小宇宙会自动上线(不可撤销)。
+            # 所以默认停在"等确认"这一步,只有 --upload 或建 job 时 --auto-upload 才继续。
+            if not (allow_upload or data.get("auto_upload")):
+                data["stage"] = "awaiting_upload"
+                job.history("awaiting_upload")
+                job.save()
+                log(job, "音频已就绪,等待用户确认后再上传(回复确认后跑 worker.py %s --upload)"
+                    % data.get("job_id"))
+                if notify:
+                    wake(job, build_payload(job, ok=True))
+                return 0
             stage_uploading(job)
 
     data["stage"] = "done"
@@ -1135,6 +1149,8 @@ def main(argv: List[str]) -> int:
     parser.add_argument("--notify-only", action="store_true", help="只重发通知")
     parser.add_argument("--no-notify", action="store_true", help="不唤醒会话")
     parser.add_argument("--dry-run", action="store_true", help="不调外部命令,只跑状态机")
+    parser.add_argument("--upload", action="store_true",
+                        help="用户已确认,执行上传(默认生成到 m4a 就停下等确认)")
     args = parser.parse_args(argv)
 
     DRY_RUN = args.dry_run
@@ -1171,7 +1187,7 @@ def main(argv: List[str]) -> int:
             job.save()
             log(job, "重跑 job %s(从 %s 开始)" % (args.job_id, job.data["stage"]))
 
-        return run_pipeline(job, notify=not args.no_notify)
+        return run_pipeline(job, notify=not args.no_notify, allow_upload=args.upload)
     except StageError as exc:
         return handle_failure(job, exc)
     except KeyboardInterrupt:
