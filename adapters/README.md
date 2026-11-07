@@ -25,6 +25,19 @@ bash scripts/install-adapters.sh --restore   # 用最近备份还原
   缺失时直接报错(避免把作者的节目 id 写死进公开代码)。
 - 其余逻辑与开发时版本一致。
 
+## 与 opencli 基线的叠加关系（重要）
+
+opencli 的本地覆盖是**按文件**生效的：`~/.opencli/clis/<site>/<command>.js` 只遮蔽同名基线文件。
+本项目只新增了 3 个**基线里不存在**的命令文件，没有改写任何基线同名文件
+（notebooklm 基线 22 个文件原封不动）。
+
+`opencli convention-audit` 实测：`download-audio` / `upload` / `upload-status` **0 违规**；
+该站点里仅有的违规都在基线自己的 `notebooklm create` 与 `xiaoyuzhou history` 上。
+
+> ⚠️ 治理提醒：如果将来 opencli 官方也加了同名命令，本地 override 会把官方版本**遮蔽**。
+> 那时应当删掉本地文件（`opencli adapter reset <site>` 或本目录 `--restore`），
+> 改用官方实现，而不是继续维护一份分叉。
+
 ## 为什么不做成 opencli plugin / 上游 PR
 
 - `opencli plugin` 的插件格式是 TS 命令(`opencli-plugin.json` + `*.ts`),
