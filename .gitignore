@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+# Python
+__pycache__/
+*.py[cod]
+# 运行产物（job 数据不该进仓库）
+jobs/
+*.wav
+*.m4a
+*.mp3
+# 本地配置
+.env

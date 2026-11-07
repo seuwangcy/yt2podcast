@@ -1,0 +1,22 @@
+# Changelog
+
+本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
+
+## [0.1.0] - 2026-11-07
+
+首个可发布版本。基于一次真实端到端实测（2 小时 14 分的 YouTube 访谈 → 19 分 15 秒中文播客）。
+
+### Added
+- 五阶段流水线 `pending → sourcing → generating → postprocess → uploading → done`，断点续跑。
+- `new-job.sh`：建 job 文件（幂等，同一视频不会重复起），可选启动 worker。
+- `worker.py`：不依赖 LLM 的流水线执行器，失败唤醒 + `notify.json` 落盘。
+- `--rerun` / `--notify-only` / `--dry-run` 三种运维模式。
+- 自动代理探测（`scutil --proxy`）与 `NODE_USE_ENV_PROXY` 注入，解决 Google 存储下载超时。
+- YouTube URL 归一化，剥离 `?si=` 等追踪参数。
+
+### Fixed
+- worker 在 agent 回合结束时被连同进程组一起杀掉，job 永久卡在 sourcing 且无通知。
+- 带追踪参数的短链导致 NotebookLM `AddSources` 返回 no source id。
+- `lh3.googleusercontent.com` 直连超时导致的 `Downloading the NotebookLM audio failed: fetch failed`。
+- 代码中硬编码的小宇宙节目 id 与节目名，改为必填配置；缺失时明确报 `PODCAST_ID_MISSING`。
+- frontmatter 依赖声明由 `anyBins`（任一存在即可）改为 `bins`（全部必需）。
