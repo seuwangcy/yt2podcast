@@ -48,9 +48,14 @@ fi
 
 # ---- 2.5 本 skill 自带的 adapter(opencli 基线里没有这三个命令) ----
 CLIS_DIR="${OPENCLI_HOME:-$HOME/.opencli}/clis"
+ADAPTER_SRC="$(cd "$(dirname "$0")/.." && pwd)/adapters"
 for rel in notebooklm/download-audio.js xiaoyuzhou/upload.js xiaoyuzhou/upload-status.js; do
-  if [ -f "$CLIS_DIR/$rel" ]; then ok "adapter 文件: $rel"; else
+  if [ ! -f "$CLIS_DIR/$rel" ]; then
     bad "缺少 adapter: $rel(opencli 基线没有这个命令)" "bash $(dirname "$0")/install-adapters.sh --install"
+  elif [ -f "$ADAPTER_SRC/$rel" ] && ! cmp -s "$ADAPTER_SRC/$rel" "$CLIS_DIR/$rel"; then
+    warn "adapter 与仓库版本不一致: $rel" "bash $(dirname "$0")/install-adapters.sh --install 同步(旧文件会自动备份)"
+  else
+    ok "adapter 文件: $rel"
   fi
 done
 

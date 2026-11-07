@@ -2,6 +2,19 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.3] - 2026-11-08
+
+### Added
+- `doctor.sh` 的 adapter 检查升级为**内容比对**（`cmp`）：文件存在但内容与仓库版本不一致时报
+  `⚠️ 与仓库版本不一致` 并给出 `install-adapters.sh --install` 同步命令，避免 `git pull` 后
+  `~/.opencli/clis/` 里留着旧副本却无人察觉。
+
+## [0.2.2] - 2026-11-08
+
+### Docs
+- `SKILL.md` 的 description 与现状对齐：上传即进入平台审核、通过后自动上线（`--hold-upload` 可在上传前停下），
+  不再声称"默认只存草稿"。
+
 ## [0.2.1] - 2026-11-08
 
 ### Changed
