@@ -20,7 +20,8 @@ openclaw system event 唤醒会话 → agent 发中文通知（含链接）
 
 - **一条命令一条龙**：取源、生成、转码、上传、通知全自动，agent 只负责"识别链接 + 回执 + 结果播报"。
 - **不烧配额的重试**：job 文件记录 `notebook_id` / `source_id` / `stages_done`，失败后 `--rerun` 从断点续跑，不重建 notebook、不重复生成音频。
-- **草稿优先**：小宇宙公开发布不可撤销，默认永远先存草稿。
+- **草稿优先，公开需双授权**：默认只存草稿；要公开发布必须同时给 `--publish` 和
+  `YT2PODCAST_ALLOW_PUBLISH=1`，否则直接报 `PUBLISH_NOT_ALLOWED`（公开不可撤销）。
 - **国内网络友好**：自动读 macOS 系统代理（`scutil --proxy`）并注入 `NODE_USE_ENV_PROXY`，解决 `lh3.googleusercontent.com` 直连超时。
 - **URL 归一化**：`youtu.be/xxx?si=...` 这类带追踪参数的短链会先转成 `watch?v=<id>` 再喂 NotebookLM。
 - **串行安全**：文件锁 `jobs/.worker.lock`，一次只跑一个 job。
@@ -89,6 +90,11 @@ python3 scripts/worker.py <video_id> --dry-run
 | `YT2PODCAST_PROXY` | 空（读系统代理） | 访问 Google 的 HTTP 代理 |
 | `YT2PODCAST_FFMPEG` / `YT2PODCAST_FFPROBE` | `which` 结果 | 自定义 ffmpeg 路径 |
 | `YT2PODCAST_TIMEOUT_*` | 见 worker.py | 各阶段超时（秒），排障时可调小 |
+
+## 安全说明
+
+执行的外部命令、网络访问、文件写入范围、发布授权门槛、进程生命周期（**不自行 detach、不装
+cron/systemd**）与"无遥测"承诺，都写在 [SECURITY.md](./SECURITY.md)。
 
 ## 已知坑（都已修，留档避免回归）
 

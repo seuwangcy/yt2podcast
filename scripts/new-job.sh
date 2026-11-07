@@ -9,14 +9,15 @@
 #   --description <简介>    中文简介;不给就用 NotebookLM 源摘要兜底
 #   --session-key <key>     完成后唤醒哪个会话,例如 agent:main:openclaw-weixin:direct:xxx
 #   --podcast <id>          小宇宙节目 id(必填,或设 YT2PODCAST_PODCAST_ID)
-#   --publish               真正发布到小宇宙(默认是草稿,开发期禁止公开发布)
+#   --publish               公开发布(默认草稿)。需同时设置 YT2PODCAST_ALLOW_PUBLISH=1,
+#                           否则直接报错退出——公开不可撤销,必须显式授权
 #   --draft                 显式指定草稿(默认行为)
 #   --retry                 已有 job 是 failed 时,重置并重跑
-#   --start                 建完 job 后立刻起 worker(默认只建 job 文件,不起 worker)
-#                           注意:在 OpenClaw 的 exec 里必须用 background 托管跑 worker.py,
-#                           脚本里的 setsid 只是兜底,agent 场景请保持默认 + 另起后台任务
-#   --wait                  前台等 worker 跑完(需配合 --start),给脚本/CI 用
-#   --timeout <秒>          --wait 的超时,默认 1800
+#
+# 说明:本脚本只负责建 job 文件,**不启动 worker**。建完用:
+#   python3 scripts/worker.py <job_id>
+# 由调用方(agent/宿主)以后台任务方式托管;这样 worker 生命周期不会超出宿主,
+# 也不会出现"脱离管理的孤儿进程"。
 #
 # 输出:一行 JSON,便于 agent 解析。
 #
@@ -40,8 +41,6 @@ PODCAST_ID="$DEFAULT_PODCAST_ID"
 DRAFT=1
 RETRY=0
 START=0
-WAIT=0
-WAIT_TIMEOUT=1800
 
 usage() {
   sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -58,13 +57,16 @@ while [ $# -gt 0 ]; do
     --description) DESCRIPTION="${2:-}"; shift 2 ;;
     --session-key) SESSION_KEY="${2:-}"; shift 2 ;;
     --podcast) PODCAST_ID="${2:-}"; shift 2 ;;
-    --publish) DRAFT=0; shift ;;
+    --publish)
+      if [ "${YT2PODCAST_ALLOW_PUBLISH:-}" != "1" ]; then
+        die "公开发布需要显式授权:设置 YT2PODCAST_ALLOW_PUBLISH=1 后再加 --publish(公开不可撤销)"
+      fi
+      DRAFT=0; shift ;;
     --draft) DRAFT=1; shift ;;
     --retry) RETRY=1; shift ;;
-    --no-start) START=0; shift ;;
-    --start) START=1; shift ;;
-    --wait) WAIT=1; shift ;;
-    --timeout) WAIT_TIMEOUT="${2:-1800}"; shift 2 ;;
+    --no-start) shift ;;   # 兼容旧参数,现在是默认行为
+    --start|--wait) die "本脚本不再启动 worker;请用: python3 ${WORKER} <job_id>(由宿主后台托管)" ;;
+    --timeout) shift 2 ;;   # 兼容旧参数,已无意义
     -h|--help) usage; exit 0 ;;
     --*) die "unknown option: $1" ;;
     *) if [ -z "$URL" ]; then URL="$1"; shift; else die "unexpected argument: $1"; fi ;;
@@ -215,50 +217,12 @@ os.replace(tmp, path)
 print(json.dumps({"job_id": job_id, "job_file": path, "stage": job["stage"]}, ensure_ascii=False))
 PY
 
-# ---------------------------------------------------------------- 起 worker
-WORKER_PID=""
-if [ "$START" -eq 1 ]; then
-  # 必须放进独立 session:OpenClaw exec host 在 agent 回合结束时会把整个 process group
-  # (treeOwnership=process-group)一起 kill,普通 nohup 的 worker 会立刻被杀掉、job 永远卡在
-  # sourcing。macOS 没有 setsid,用 perl 的 POSIX::setsid 兜底。
-  if command -v setsid >/dev/null 2>&1; then
-    nohup setsid python3 "$WORKER" "$JOB_ID" >>"$JOB_DIR/worker.out" 2>&1 </dev/null &
-  elif command -v perl >/dev/null 2>&1; then
-    nohup perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "exec failed: $!"' python3 "$WORKER" "$JOB_ID" >>"$JOB_DIR/worker.out" 2>&1 </dev/null &
-  else
-    nohup python3 "$WORKER" "$JOB_ID" >>"$JOB_DIR/worker.out" 2>&1 </dev/null &
-  fi
-  WORKER_PID=$!
-  sleep 0.3
-  if ! kill -0 "$WORKER_PID" 2>/dev/null; then
-    die "worker failed to start; see $JOB_DIR/worker.out"
-  fi
-fi
+# 不启动 worker:只把"下一步命令"告诉调用方
+NEXT_STEP="python3 $WORKER $JOB_ID"
 
-# ---------------------------------------------------------------- 可选:等结果
-FINAL_STAGE="pending"
-if [ "$WAIT" -eq 1 ] && [ "$START" -eq 1 ]; then
-  DEADLINE=$(( $(date +%s) + WAIT_TIMEOUT ))
-  while [ "$(date +%s)" -lt "$DEADLINE" ]; do
-    FINAL_STAGE="$(python3 - "$JOB_FILE" <<'PY'
+python3 - "$JOB_FILE" "$JOB_ID" "$NEXT_STEP" <<'PY'
 import json, sys
-try:
-    with open(sys.argv[1], "r", encoding="utf-8") as handle:
-        print(json.load(handle).get("stage") or "pending")
-except Exception:
-    print("pending")
-PY
-)"
-    case "$FINAL_STAGE" in
-      done|failed) break ;;
-    esac
-    sleep 5
-  done
-fi
-
-python3 - "$JOB_FILE" "$JOB_ID" "$WORKER_PID" "$FINAL_STAGE" "$START" <<'PY'
-import json, sys
-path, job_id, pid, stage, start = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+path, job_id, next_step = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     with open(path, "r", encoding="utf-8") as handle:
         job = json.load(handle)
@@ -267,9 +231,9 @@ except Exception:
 print(json.dumps({
     "ok": True,
     "job_id": job_id,
-    "stage": stage if start == "1" else job.get("stage"),
-    "started": start == "1",
-    "worker_pid": int(pid) if pid else None,
+    "stage": job.get("stage"),
+    "started": False,
+    "next_step": next_step,
     "job_file": path,
     "job_dir": path.rsplit("/", 1)[0] + "/" + job_id,
     "log": path.rsplit("/", 1)[0] + "/" + job_id + "/worker.log",

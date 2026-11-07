@@ -27,7 +27,12 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
 
 **文件写入**：只写 `${YT2PODCAST_ROOT}`（默认 `~/.openclaw/workspace/yt2podcast`）下的 `jobs/`。不读不写用户其它目录，不上传任何本地文件到第三方（唯一上传目标是小宇宙，内容是本次生成的音频）。
 
-**公开发布能力（重要）**：默认 `--draft`，只存草稿；但 `new-job.sh --publish` 会把节目**公开发布**到小宇宙，该操作不可撤销。只有用户明确要求时才可用。
+**公开发布能力（重要）**：默认 `--draft`，只存草稿。公开发布需要**双重显式授权**：
+`--publish` 且环境变量 `YT2PODCAST_ALLOW_PUBLISH=1`，缺一个就直接报错拒绝
+（`PUBLISH_NOT_ALLOWED`）。公开发布不可撤销，只有在用户明确要求时才可用。
+
+**进程生命周期**：本 skill 不自行 detach 进程——worker 由调用方（agent 的宿主、
+用户终端、或宿主托管的后台任务）启动，随宿主结束而结束；不安装 systemd/cron/开机项。
 
 **通知行为**：任务结束（成功或失败）会主动唤醒发起会话并推送一条中文消息，这是用户预期内的结果回执，不是营销推送。
 
@@ -74,7 +79,7 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
      --session-key "<当前会话 key>"
    ```
 
-   - 默认**只建 job 文件、不启动 worker**；加 `--start` 才会顺带起 worker（CI/脚本场景）。
+   - 本脚本**只建 job 文件，从不启动 worker**（不会 fork、不会 nohup、不会 setsid）。
    - `"existing": true` → 这个视频已在跑，别重复起，直接回执。
    - `stage: failed` → 先按"排障"处理，重跑加 `--retry`。
    - 默认草稿；用户明确要求公开发布才加 `--publish`。
@@ -89,8 +94,8 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
 
    > ⚠️ 关键坑：OpenClaw 的 exec 在回合结束时会 kill 整个进程组（日志里能看到
    > `treeOwnership: process-group`）。普通 `nohup ... &` 起的 worker 会被立刻杀掉，
-   > job 永远停在第一个阶段，而且**不会**有失败通知。
-   > `new-job.sh` 不带 `--no-start` 时会用 setsid 兜底启动，但最稳的是上面这种 background 托管。
+   > job 永远停在第一个阶段，而且**不会**有失败通知。所以必须用宿主的 background 托管能力，
+   > 不要自己 detach。
 
 5. **秒回执**（一条消息，然后结束本回合）：
 

@@ -810,6 +810,12 @@ def stage_uploading(job: Job) -> None:
     if data.get("draft"):
         cmd += ["--draft"]
     else:
+        # 公开发布不可撤销,必须由调用方显式授权(环境变量),否则拒绝执行。
+        if os.environ.get("YT2PODCAST_ALLOW_PUBLISH") != "1":
+            raise StageError(
+                "PUBLISH_NOT_ALLOWED",
+                "公开发布需要显式授权:设置 YT2PODCAST_ALLOW_PUBLISH=1 后重跑;默认只存草稿",
+            )
         cmd += ["--publish"]
     cmd += ["--timeout", "900"]
 

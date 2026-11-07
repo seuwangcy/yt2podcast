@@ -2,6 +2,15 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.2] - 2026-11-07
+
+### Changed
+- **公开发布改为双重显式授权**：`--publish` 且 `YT2PODCAST_ALLOW_PUBLISH=1`，缺一即报
+  `PUBLISH_NOT_ALLOWED`。回应安全扫描"public publishing can occur without explicit authorization"。
+- **不再自行 detach 进程**：`new-job.sh` 只写 job 文件并打印下一步命令，移除了 setsid/nohup 启动路径。
+  回应"a worker can outlive the host's process cleanup"。
+- 新增 `SECURITY.md`，逐项说明执行命令、网络、写入范围、发布授权、进程生命周期、无遥测。
+
 ## [0.1.1] - 2026-11-07
 
 ### Changed
