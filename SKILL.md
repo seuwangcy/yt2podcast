@@ -162,13 +162,21 @@ worker 结束时执行 `openclaw system event --text "yt2podcast {...}" --mode n
 简介：<一两句中文简介>
 时长：<duration_text>
 大小：<size_text>
-状态：<已发布 / 草稿>
+状态：<平台口径：草稿 / 审核中 / 已发布>
 链接：<episode_url>
 ```
 
 - 名称/简介要**二次润色**：读 `source_summary`（NotebookLM 的中文摘要）后用自己的话写，
   不要照抄 Markdown 标记（`**`）。
-- `draft: true` → 说"已存为草稿，确认后我再发布"。
+- **状态必须用平台回查值**，不要凭 `draft` 标志下结论。payload 里三个字段：
+  - `episode_status`：`draft` / `reviewing` / `published`
+  - `review_status`：`PENDING` / `APPROVED` / `REJECTED`
+  - `episode_published`：布尔
+- **小宇宙的"草稿"语义要小心**：托管单集的 `draft` 只是后端状态 `INITIALIZED`，
+  后台界面显示为「单集审核中」；审核通过后平台可能**自动上线**，不需要再点发布。
+  所以对用户要说"已上传，平台状态：审核中（通过后会自动出现在节目里）"，
+  只有在 `episode_status=published` 时才说"已发布"。
+- 想确认后续状态：`opencli xiaoyuzhou upload-status <episode_id> --podcast <id> --site-session persistent --keep-tab true`。
 
 ### 失败
 

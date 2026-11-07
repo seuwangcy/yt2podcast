@@ -2,6 +2,15 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.9] - 2026-11-08
+
+### Fixed
+- **"草稿"表述误导**：小宇宙托管单集的 `draft` 只是后端状态 `INITIALIZED`（后台显示
+  「单集审核中」），审核通过后平台可能自动上线。此前通知一律写"草稿、确认后我再发布"，
+  与实际不符。现在上传后会用 `xiaoyuzhou upload-status` **回查平台真实状态**，
+  记入 `episode_status` / `review_status` / `episode_published` 并随通知下发，
+  文档要求按平台口径播报。
+
 ## [0.1.8] - 2026-11-08
 
 ### Added

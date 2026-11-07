@@ -868,12 +868,43 @@ def stage_uploading(job: Job) -> None:
     data["upload_draft"] = bool(data.get("draft"))
     job.save()
     log(job, "上传完成: %s" % (episode_url or episode_id))
+
+    # 回查平台真实状态:小宇宙的"草稿"只是 INITIALIZED(后台显示"单集审核中"),
+    # 审核通过后可能自动上线,所以通知里不能凭 draft 标志就宣称"未发布"。
+    verify_episode_status(job, episode_id, podcast_id)
+
     job.done_stage("uploading")
 
 
 # --------------------------------------------------------------------------
 # 通知(wake)
 # --------------------------------------------------------------------------
+
+
+def verify_episode_status(job: Job, episode_id: Optional[str], podcast_id: str) -> None:
+    """上传后回查单集状态,把平台口径记进 job(失败不影响主流程)。"""
+    data = job.data
+    if not episode_id:
+        return
+    try:
+        result = opencli(
+            ["xiaoyuzhou", "upload-status", episode_id, "--podcast", podcast_id,
+             "--site-session", "persistent", "--keep-tab", "true"],
+            TIMEOUT_UPLOAD,
+            job,
+        )
+    except StageError as exc:
+        log(job, "回查单集状态失败(忽略): %s" % exc.message)
+        return
+    row = result[0] if isinstance(result, list) and result else result
+    if not isinstance(row, dict):
+        return
+    data["episode_status"] = row.get("status")
+    data["review_status"] = row.get("review_status")
+    data["episode_published"] = bool(row.get("published"))
+    job.save()
+    log(job, "平台状态: %s / review=%s / published=%s"
+        % (data["episode_status"], data["review_status"], data["episode_published"]))
 
 
 def build_payload(job: Job, ok: bool) -> Dict[str, Any]:
@@ -894,6 +925,10 @@ def build_payload(job: Job, ok: bool) -> Dict[str, Any]:
         "size_text": human_size(data.get("final_bytes")),
         "podcast_id": data.get("podcast_id") or DEFAULT_PODCAST_ID,
         "draft": bool(data.get("draft")),
+        # 平台真实状态(draft / reviewing / published);draft 标志只代表"没显式点发布"
+        "episode_status": data.get("episode_status"),
+        "review_status": data.get("review_status"),
+        "episode_published": data.get("episode_published"),
         "episode_url": data.get("episode_url"),
         "episode_id": data.get("episode_id"),
         "artifacts": {
