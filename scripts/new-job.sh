@@ -11,7 +11,7 @@
 #   --podcast <id>          小宇宙节目 id(必填,或设 YT2PODCAST_PODCAST_ID)
 #   --publish               上传后调用平台"发布"接口。需同时设置 YT2PODCAST_ALLOW_PUBLISH=1,
 #                           否则直接报错退出——公开不可撤销,必须显式授权
-#   --auto-upload           一条龙:生成完直接上传,不等确认(默认会在上传前停下等用户点头)
+#   --hold-upload           生成完先停下等确认(默认是一条龙:直接上传)
 #   --draft                 显式指定草稿(默认行为)
 #   --retry                 已有 job 是 failed 时,重置并重跑
 #
@@ -40,7 +40,8 @@ DESCRIPTION=""
 SESSION_KEY=""
 PODCAST_ID="$DEFAULT_PODCAST_ID"
 DRAFT=1
-AUTO_UPLOAD=0
+AUTO_UPLOAD=1
+HOLD_UPLOAD=0
 RETRY=0
 START=0
 
@@ -65,7 +66,8 @@ while [ $# -gt 0 ]; do
       fi
       DRAFT=0; shift ;;
     --draft) DRAFT=1; shift ;;
-    --auto-upload) AUTO_UPLOAD=1; shift ;;
+    --hold-upload) HOLD_UPLOAD=1; shift ;;
+    --auto-upload) HOLD_UPLOAD=0; shift ;;   # 兼容旧参数,现在是默认行为
     --retry) RETRY=1; shift ;;
     --no-start) shift ;;   # 兼容旧参数,现在是默认行为
     --start|--wait) die "本脚本不再启动 worker;请用: python3 ${WORKER} <job_id>(由宿主后台托管)" ;;
@@ -212,7 +214,7 @@ fi
 # ---------------------------------------------------------------- 写 job 文件
 YOUTUBE_URL="$URL" JOB_ID="$JOB_ID" JOB_FILE="$JOB_FILE" JOB_DIR="$JOB_DIR" \
 TITLE="$TITLE" DESCRIPTION="$DESCRIPTION" SESSION_KEY="$SESSION_KEY" \
-PODCAST_ID="$PODCAST_ID" AUTO_UPLOAD="$AUTO_UPLOAD" DRAFT="$DRAFT" RETRY="$RETRY" \
+PODCAST_ID="$PODCAST_ID" AUTO_UPLOAD="$AUTO_UPLOAD" HOLD_UPLOAD="$HOLD_UPLOAD" DRAFT="$DRAFT" RETRY="$RETRY" \
 python3 - <<'PY'
 import json, os, time
 
@@ -241,6 +243,7 @@ job.update({
     "podcast_id": os.environ.get("PODCAST_ID") or job.get("podcast_id"),
     "draft": os.environ.get("DRAFT") == "1",
     "auto_upload": os.environ.get("AUTO_UPLOAD") == "1",
+    "hold_upload": os.environ.get("HOLD_UPLOAD") == "1",
     "notebook_id": job.get("notebook_id"),
     "source_id": job.get("source_id"),
     "stages_done": job.get("stages_done") or [],

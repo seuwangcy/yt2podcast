@@ -20,10 +20,10 @@ openclaw system event 唤醒会话 → agent 发中文通知（含链接）
 
 - **一条命令一条龙**：取源、生成、转码、上传、通知全自动，agent 只负责"识别链接 + 回执 + 结果播报"。
 - **不烧配额的重试**：job 文件记录 `notebook_id` / `source_id` / `stages_done`，失败后 `--rerun` 从断点续跑，不重建 notebook、不重复生成音频。
-- **两段式：先出音频、确认后再上传**。小宇宙托管单集没有真正"草稿箱"——
-  上传会进入平台审核，**审核通过即自动上线**（实测：未点任何发布按钮，审核通过后自动 published）。
-  所以默认在上传前停下（`stage: awaiting_upload`），由用户确认后跑 `worker.py <id> --upload`。
-  想一条龙用 `--auto-upload`；要显式调平台发布接口再加 `--publish`（需 `YT2PODCAST_ALLOW_PUBLISH=1`）。
+- **一条龙上传**：生成完直接上传，默认不需要人工确认。**小宇宙没有可用的"草稿箱"**——
+  上传即进入平台审核，**审核通过后自动上线**（实测：全程未点发布按钮，第一集仍变成
+  `published/APPROVED`）。所以别拿 draft 当保护：要拦截就加 `--hold-upload`（上传前停下等确认）；
+  要显式调平台发布接口再加 `--publish`（需 `YT2PODCAST_ALLOW_PUBLISH=1`）。
 - **国内网络友好**：自动读 macOS 系统代理（`scutil --proxy`）并注入 `NODE_USE_ENV_PROXY`，解决 `lh3.googleusercontent.com` 直连超时。
 - **URL 归一化**：`youtu.be/xxx?si=...` 这类带追踪参数的短链会先转成 `watch?v=<id>` 再喂 NotebookLM。
 - **串行安全**：文件锁 `jobs/.worker.lock`，一次只跑一个 job。

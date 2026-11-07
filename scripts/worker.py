@@ -1093,9 +1093,9 @@ def run_pipeline(job: Job, notify: bool = True, allow_upload: bool = False) -> i
         elif stage == "postprocess":
             stage_postprocess(job)
         elif stage == "uploading":
-            # 上传即进入平台审核,审核通过后小宇宙会自动上线(不可撤销)。
-            # 所以默认停在"等确认"这一步,只有 --upload 或建 job 时 --auto-upload 才继续。
-            if not (allow_upload or data.get("auto_upload")):
+            # 默认一条龙上传(用户已确认这是期望行为)。
+            # 可选 --hold-upload: 生成完先停下,等用户点头再跑 worker.py <id> --upload。
+            if data.get("hold_upload") and not allow_upload:
                 data["stage"] = "awaiting_upload"
                 job.history("awaiting_upload")
                 job.save()

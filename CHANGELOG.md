@@ -2,6 +2,16 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.1] - 2026-11-08
+
+### Changed
+- **默认恢复一条龙上传**：生成到 m4a 后直接上传，不再默认停等确认（用户确认这是期望行为）。
+  需要拦截时用新参数 `--hold-upload`（停下等 `worker.py <id> --upload`）；`--auto-upload` 保留为兼容别名。
+
+### Docs
+- 明确写清"小宇宙没有可用草稿箱"：上传即进入平台审核，通过后自动上线；
+  `draft` 标志只是后端 `INITIALIZED`（后台显示"单集审核中"），不能当作未发布凭证。
+
 ## [0.2.0] - 2026-11-08
 
 ### Changed

@@ -119,8 +119,8 @@ bash {baseDir}/scripts/doctor.sh --json   # 机读
    - 本脚本**只建 job 文件，从不启动 worker**（不会 fork、不会 nohup、不会 setsid）。
    - `"existing": true` → 这个视频已在跑，别重复起，直接回执。
    - `stage: failed` → 先按"排障"处理，重跑加 `--retry`。
-   - **默认两段式**：生成到 m4a 后停下等你确认，不会自动上传。
-     想一条龙（生成完直接上传）才加 `--auto-upload`；想连"发布"接口一起调再加 `--publish`（需 `YT2PODCAST_ALLOW_PUBLISH=1`）。
+   - **默认一条龙**：生成完直接上传（用户期望的默认行为）。
+     想在上传前停下等确认，加 `--hold-upload`；想连平台"发布"接口一起调再加 `--publish`（需 `YT2PODCAST_ALLOW_PUBLISH=1`）。
 
 4. **启动 worker —— 必须用后台托管，不要用 nohup**：
 
@@ -144,8 +144,8 @@ bash {baseDir}/scripts/doctor.sh --json   # 机读
 5. **秒回执**（一条消息，然后结束本回合）：
 
    ```
-   ✅ 已收到《<中文播客名>》，原视频 <时长>，正在生成音频，大约 10–20 分钟。
-   生成完我先停下，把音频给你确认，你点头我再上传到小宇宙。
+   ✅ 已收到《<中文播客名>》，原视频 <时长>，正在生成音频并上传小宇宙，
+   大约 10–20 分钟（上传后进入平台审核，通过即自动上线）。完成后我把链接发你。
    ```
 
    不要 sleep、不要轮询 job 文件；worker 结束时自己唤醒。
@@ -155,7 +155,7 @@ bash {baseDir}/scripts/doctor.sh --json   # 机读
 worker 结束时执行 `openclaw system event --text "yt2podcast {...}" --mode now` 唤醒原会话。
 最稳的做法是先读 `jobs/<video_id>/notify.json`（同一个 JSON 的落盘版）。
 
-### 情况 A：生成完、等你确认上传（`needs_confirmation: true`）
+### 情况 A：只在 `--hold-upload` 模式下出现——生成完、等你确认上传（`needs_confirmation: true`）
 
 ```
 🎧 音频已就绪，等你确认
@@ -173,7 +173,7 @@ python3 {baseDir}/scripts/worker.py <video_id> --upload
 
 然后等下一次通知（那一轮才是最终结果）。用户说"不用了"就什么都不做，job 停在 `awaiting_upload`。
 
-### 情况 B：已经上传完成（`stage: done`）
+### 情况 B：默认一条龙，上传完成（`stage: done`）
 
 ```
 ✅ 播客已生成
