@@ -42,14 +42,26 @@ ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为
 
 | 依赖 | 用途 | 检查 |
 | --- | --- | --- |
-| `opencli` + `notebooklm` adapter | 建 notebook、加源、生成/下载音频 | `opencli notebooklm list` |
-| `opencli` + `xiaoyuzhou` adapter | 上传节目到小宇宙 | `opencli xiaoyuzhou --help` |
+| `opencli` | adapter 运行时 | `opencli --version` |
+| **本 skill 自带的 3 个 adapter** | `notebooklm download-audio`、`xiaoyuzhou upload`、`xiaoyuzhou upload-status` —— **opencli 官方基线里没有，必须装** | `bash {baseDir}/scripts/install-adapters.sh --check` |
 | `ffmpeg` / `ffprobe` | 转码 m4a、取时长 | `ffmpeg -version` |
 | Chrome 登录态（persistent session） | notebook.google.com + podcaster.xiaoyuzhoufm.com | 出错会报 `NEED_LOGIN` |
 | Google 可达的网络 | 音频文件在 `lh3.googleusercontent.com`，国内直连会失败 | 见"网络代理" |
 | `openclaw` CLI | worker 跑完后唤醒会话 | `openclaw --version` |
 
-**小宇宙节目 id 必须自己提供**（`--podcast` 或环境变量 `YT2PODCAST_PODCAST_ID`），代码里没有默认值。
+**小宇宙节目 id 必须自己提供**（`--podcast` 或环境变量 `YT2PODCAST_PODCAST_ID`），代码和 adapter 里都没有默认值。
+
+**adapter 必须单独安装**（这是最容易漏的一步）：
+
+```bash
+bash {baseDir}/scripts/install-adapters.sh --check     # 先看缺什么
+bash {baseDir}/scripts/install-adapters.sh --install   # 装到 ~/.opencli/clis/（会备份旧文件）
+```
+
+原因：opencli 官方只提供 `notebooklm generate-audio` 和 `xiaoyuzhou history/download` 之类的基础命令，
+**没有** `download-audio`（生成+轮询+下载+转码一体）、`upload`（小宇宙主播后台上传）、
+`upload-status`（查单集状态）。这三个是本 skill 的配套 adapter，放在 `adapters/` 目录里一起分发。
+不装的话 worker 会在 `generating` / `uploading` 阶段报 `ADAPTER_MISSING` 或命令不存在。
 
 ## 目录约定
 
@@ -69,7 +81,7 @@ bash {baseDir}/scripts/doctor.sh --json   # 机读
 
 会逐项检查并给出**具体修复命令**：
 - 命令行依赖：`opencli` / `ffmpeg` / `ffprobe` / `python3` / `openclaw`
-- opencli adapter：`notebooklm`、`xiaoyuzhou` 是否装了
+- adapter：opencli 是否装了，以及**本 skill 自带的 3 个 adapter 文件**是否就位（缺了直接给 `install-adapters.sh --install`）
 - 登录态：NotebookLM（`notebooklm whoami`）、小宇宙主播后台（用历史单集的状态查询探活）
 - 配置：`YT2PODCAST_PODCAST_ID` 有没有设
 - 网络：`lh3.googleusercontent.com` 是否可达（自动探测系统代理）

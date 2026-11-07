@@ -32,8 +32,8 @@ openclaw system event 唤醒会话 → agent 发中文通知（含链接）
 | 依赖 | 说明 |
 | --- | --- |
 | [OpenClaw](https://docs.openclaw.ai) | agent 运行环境（提供 exec / system event / skills） |
-| [opencli](https://www.npmjs.com/package/@jackwener/opencli) + `notebooklm` adapter | NotebookLM 建本、加源、生成、下载 |
-| [opencli](https://www.npmjs.com/package/@jackwener/opencli) + `xiaoyuzhou` adapter | 上传到小宇宙 |
+| [opencli](https://www.npmjs.com/package/@jackwener/opencli) | adapter 运行时（adapter 由本项目自带，见下） |
+| **本项目自带 3 个 adapter**（`adapters/`） | `notebooklm download-audio`、`xiaoyuzhou upload`、`xiaoyuzhou upload-status` —— opencli 基线没有，必须安装 |
 | `ffmpeg` / `ffprobe` | 转码 m4a、读时长 |
 | Chrome 登录态 | notebook.google.com 与 podcaster.xiaoyuzhoufm.com 都要登录（persistent session） |
 | 可访问 Google 的网络 | 音频文件在 `lh3.googleusercontent.com` |
@@ -44,6 +44,13 @@ openclaw system event 唤醒会话 → agent 发中文通知（含链接）
 git clone https://github.com/<owner>/yt2podcast ~/.openclaw/workspace/coding/yt2podcast
 ln -sfn ~/.openclaw/workspace/coding/yt2podcast ~/.openclaw/skills/yt2podcast
 openclaw skills list      # 出现 yt2podcast 即安装成功
+```
+
+**先装 adapter**（这是最容易漏的一步，opencli 官方没有这三个命令）：
+
+```bash
+bash scripts/install-adapters.sh --install   # 复制到 ~/.opencli/clis/，自动备份旧文件
+opencli adapter status                       # 应看到 notebooklm / xiaoyuzhou 的 override
 ```
 
 安装后先做环境自检（逐项检查，并把修复命令直接打出来）：
@@ -140,7 +147,10 @@ yt2podcast/
 ├── scripts/
 │   ├── new-job.sh        # 只建 job 文件（不启动 worker）
 │   ├── worker.py         # 五阶段流水线（不依赖 LLM）
-│   └── resume-stalled.py # 卡住自愈：发现 + 断点续跑
+│   ├── resume-stalled.py # 卡住自愈：发现 + 断点续跑
+│   ├── doctor.sh         # 环境自检（依赖/adapter/登录/网络）
+│   └── install-adapters.sh  # 安装自带 adapter 到 ~/.opencli/clis/
+├── adapters/           # 自带 opencli adapter（opencli 基线没有这三个命令）
 ├── CHANGELOG.md
 └── LICENSE
 ```

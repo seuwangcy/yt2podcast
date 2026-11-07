@@ -14,6 +14,16 @@ documented explicitly here and in `SKILL.md#能力与风险声明`.
 No shell is spawned from model output; command lines are built in `scripts/worker.py`
 from a fixed vocabulary.
 
+## Bundled opencli adapters
+
+`adapters/` ships three JS adapters that opencli's baseline does not include:
+`notebooklm/download-audio`, `xiaoyuzhou/upload`, `xiaoyuzhou/upload-status`.
+`scripts/install-adapters.sh --install` copies them into `~/.opencli/clis/` (backing up
+existing files) — that is an explicit, user-invoked command, and it is the only place this
+skill writes outside its own data root. They run inside the opencli process, talk only to
+`notebook.google.com` / `lh3.googleusercontent.com` / `podcaster-api.xiaoyuzhoufm.com`,
+carry no credentials, and no longer embed any podcast id (it must be provided by the caller).
+
 ## Network
 
 - `youtube.com` / `youtu.be` — metadata

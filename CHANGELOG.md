@@ -2,6 +2,20 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.6] - 2026-11-07
+
+### Added
+- **自带 3 个 opencli adapter**（`adapters/`）：`notebooklm download-audio`、
+  `xiaoyuzhou upload`、`xiaoyuzhou upload-status`。这三条命令 opencli 官方基线里没有，
+  之前只有作者本机装了 → 别的用户装完 skill 必然卡在 generating / uploading。
+  现在随包分发 + `scripts/install-adapters.sh` 一条命令安装（自动备份旧文件、支持 --check/--restore）。
+- `doctor.sh` 增加 adapter 文件就位检查，缺了直接给出安装命令。
+
+### Changed
+- adapter 里的 `DEFAULT_PODCAST_ID` 硬编码移除，改由 `--podcast` 或 `YT2PODCAST_PODCAST_ID` 提供，
+  缺失时报错（避免把作者的节目 id 写进公开代码）。
+- `SKILL.md` 依赖表区分"opencli 本体"与"本项目自带的 adapter"，并说明不装的后果。
+
 ## [0.1.5] - 2026-11-07
 
 ### Added

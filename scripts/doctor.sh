@@ -46,6 +46,14 @@ if have opencli; then
   fi
 fi
 
+# ---- 2.5 本 skill 自带的 adapter(opencli 基线里没有这三个命令) ----
+CLIS_DIR="${OPENCLI_HOME:-$HOME/.opencli}/clis"
+for rel in notebooklm/download-audio.js xiaoyuzhou/upload.js xiaoyuzhou/upload-status.js; do
+  if [ -f "$CLIS_DIR/$rel" ]; then ok "adapter 文件: $rel"; else
+    bad "缺少 adapter: $rel(opencli 基线没有这个命令)" "bash $(dirname "$0")/install-adapters.sh --install"
+  fi
+done
+
 # ---------------------------------------------------------------- 3. 登录态
 if have opencli && opencli notebooklm --help >/dev/null 2>&1; then
   if timeout 120 opencli notebooklm whoami -f json >/tmp/yt2p-doctor-nb.json 2>&1; then
@@ -54,7 +62,8 @@ if have opencli && opencli notebooklm --help >/dev/null 2>&1; then
     bad "NotebookLM 未登录" "opencli notebooklm login(或先 opencli notebooklm open <nb> 在浏览器里登录)"
   fi
 fi
-if have opencli && opencli xiaoyuzhou --help >/dev/null 2>&1; then
+PODCAST_ID="${YT2PODCAST_PODCAST_ID:-}"
+if have opencli && opencli xiaoyuzhou --help >/dev/null 2>&1 && [ -n "$PODCAST_ID" ]; then
   # 小宇宙主播后台的登录态没法直接探测,借"查一个已知单集的状态"来验证:
   # 能查到 = 会话有效;查不到 = 未登录或会话过期。
   KNOWN_EP=$(python3 - "$ROOT" <<'PY'
@@ -71,7 +80,7 @@ print(best)
 PY
 )
   if [ -n "$KNOWN_EP" ]; then
-    if timeout 150 opencli xiaoyuzhou upload-status "$KNOWN_EP" --site-session persistent --keep-tab true -f json >/dev/null 2>&1; then
+    if timeout 150 opencli xiaoyuzhou upload-status "$KNOWN_EP" --podcast "$PODCAST_ID" --site-session persistent --keep-tab true -f json >/dev/null 2>&1; then
       ok "登录: 小宇宙主播后台(用单集 $KNOWN_EP 验证)"
     else
       bad "小宇宙主播后台未登录或会话过期" "浏览器打开 https://podcaster.xiaoyuzhoufm.com/ 登录后重试"
@@ -82,8 +91,7 @@ PY
 fi
 
 # ---------------------------------------------------------------- 4. 节目 id
-PID="${YT2PODCAST_PODCAST_ID:-}"
-if [ -n "$PID" ]; then ok "节目 id: $PID"; else
+if [ -n "$PODCAST_ID" ]; then ok "节目 id: $PODCAST_ID"; else
   bad "没有小宇宙节目 id" "export YT2PODCAST_PODCAST_ID=<你的节目id>,或建 job 时传 --podcast"
 fi
 
