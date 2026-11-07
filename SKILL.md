@@ -1,6 +1,6 @@
 ---
 name: yt2podcast
-description: 把 YouTube 视频变成中文音频播客并上传到小宇宙（NotebookLM Audio Overview + 草稿上传 + 后台 worker + 完成唤醒）。用户从微信/聊天里发来 YouTube 链接时使用。
+description: 把 YouTube 视频变成中文音频播客，用 NotebookLM Audio Overview 生成、ffmpeg 转码，再上传小宇宙；默认只存草稿，用户明确要求时才公开发布；完成后回推一条结果通知。用户从微信/聊天里发来 YouTube 链接时使用。
 metadata:
   openclaw:
     requires:
@@ -11,6 +11,27 @@ metadata:
 
 把一个 YouTube 视频用 NotebookLM 的 Audio Overview 做成中文对谈播客，
 再上传到小宇宙（默认**草稿**，不公开发布）。
+
+## 能力与风险声明（Capabilities & Safety）
+
+ClawHub 的自动扫描会检查"行为是否超出描述"。本 skill 的行为范围如下，全部为明示能力，没有隐藏动作：
+
+**会执行的外部命令**
+- `opencli youtube video`（只读，取标题/时长）
+- `opencli notebooklm create / add-source / source-guide / open / download-audio`（建本、加源、生成并下载音频）
+- `opencli xiaoyuzhou upload`（上传节目）
+- `ffmpeg` / `ffprobe`（转码与取时长）
+- `openclaw system event`（跑完唤醒发起会话，发一条中文通知）
+
+**网络访问**：YouTube（元数据）、notebook.google.com（生成）、lh3.googleusercontent.com（下载音频，可能需要代理）、xiaoyuzhoufm.com（上传）。
+
+**文件写入**：只写 `${YT2PODCAST_ROOT}`（默认 `~/.openclaw/workspace/yt2podcast`）下的 `jobs/`。不读不写用户其它目录，不上传任何本地文件到第三方（唯一上传目标是小宇宙，内容是本次生成的音频）。
+
+**公开发布能力（重要）**：默认 `--draft`，只存草稿；但 `new-job.sh --publish` 会把节目**公开发布**到小宇宙，该操作不可撤销。只有用户明确要求时才可用。
+
+**通知行为**：任务结束（成功或失败）会主动唤醒发起会话并推送一条中文消息，这是用户预期内的结果回执，不是营销推送。
+
+**无遥测**：本 skill 不含任何统计、上报、埋点。
 
 ## 依赖（缺一样都跑不通）
 
