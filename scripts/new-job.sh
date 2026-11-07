@@ -76,6 +76,35 @@ done
 [ -n "$URL" ] || { usage >&2; die "missing youtube url"; }
 [ -f "$WORKER" ] || die "worker not found: $WORKER"
 
+# ---------- 前置条件(毫秒级,不启动浏览器):缺东西就别建 job --------
+require_ready() {
+  local missing=() fix=""
+  local b
+  for b in opencli ffmpeg ffprobe python3; do
+    command -v "$b" >/dev/null 2>&1 || missing+=("命令缺失: $b")
+  done
+  local clis="${OPENCLI_HOME:-$HOME/.opencli}/clis"
+  local rel
+  for rel in notebooklm/download-audio.js xiaoyuzhou/upload.js xiaoyuzhou/upload-status.js; do
+    [ -f "$clis/$rel" ] || missing+=("adapter 未安装: $rel")
+  done
+  [ -n "${PODCAST_ID:-}" ] || missing+=("没有小宇宙节目 id")
+
+  if [ "${#missing[@]}" -gt 0 ]; then
+    fix="bash $SCRIPT_DIR/setup.sh"
+    python3 - "$fix" "${missing[@]}" <<'PY'
+import json, sys
+print(json.dumps({
+    "ok": False,
+    "error": "前置条件未满足,已拒绝建 job(避免白跑一趟、白耗生成配额)",
+    "missing": sys.argv[2:],
+    "fix": sys.argv[1],
+}, ensure_ascii=False))
+PY
+    exit 4
+  fi
+}
+
 # ---------------------------------------------------------------- 提取 video_id
 extract_video_id() {
   local url="$1"
@@ -94,6 +123,8 @@ extract_video_id() {
   id="${id%%/*}"
   printf '%s' "$id"
 }
+
+require_ready
 
 VIDEO_ID="$(extract_video_id "$URL")"
 if ! printf '%s' "$VIDEO_ID" | grep -Eq '^[A-Za-z0-9_-]{11}$'; then

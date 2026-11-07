@@ -53,12 +53,16 @@ bash scripts/install-adapters.sh --install   # 复制到 ~/.opencli/clis/，自�
 opencli adapter status                       # 应看到 notebooklm / xiaoyuzhou 的 override
 ```
 
-安装后先做环境自检（逐项检查，并把修复命令直接打出来）：
+**首次配置一条命令**（装 adapter + 环境自检）：
 
 ```bash
-bash scripts/doctor.sh          # 逐项 ✅/❌；退出码 1 = 有阻塞项
-bash scripts/doctor.sh --json   # 机读
+bash scripts/setup.sh
 ```
+
+之后如果只想复检：`bash scripts/doctor.sh`（逐项 ✅/❌，退出码 1 = 有阻塞项）。
+
+> skill 安装不会执行任何代码（平台安全设计），所以首次要手动跑一次 setup。
+> 忘跑也不会白跑任务：`new-job.sh` 会在建 job 前就拦住并只给这一条修复命令。
 
 设置你的小宇宙节目 id（代码里没有默认值）：
 

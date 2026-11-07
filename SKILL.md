@@ -75,9 +75,16 @@ bash {baseDir}/scripts/install-adapters.sh --install   # 装到 ~/.opencli/clis/
 ## 第 0 步：环境自检（首次使用、换机器、报 NEED_LOGIN 时先跑）
 
 ```bash
-bash {baseDir}/scripts/doctor.sh          # 人看：逐项 ✅/❌ 带修复命令
+bash {baseDir}/scripts/setup.sh           # 首次使用:装 adapter + 自检(一条命令)
+bash {baseDir}/scripts/doctor.sh          # 只自检,不改动系统
 bash {baseDir}/scripts/doctor.sh --json   # 机读
 ```
+
+> 为什么不能"装好就自动生效":skill 安装只解压文件,平台**不允许** skill 在安装时执行代码
+> (这是安全设计,本 skill 也不该偷偷改你的系统)。所以这里用 **fail-closed** 兜底:
+> `new-job.sh` 在写 job 之前会毫秒级检查依赖,缺东西就**直接拒绝**并打印唯一修复命令
+> `bash {baseDir}/scripts/setup.sh`;`worker.py` 开跑前还会再查一次(防止绕过入口)。
+> 也就是说,配置没做时不会"跑到一半才失败",而是在第一步就被拦住并告诉你怎么修。
 
 会逐项检查并给出**具体修复命令**：
 - 命令行依赖：`opencli` / `ffmpeg` / `ffprobe` / `python3` / `openclaw`

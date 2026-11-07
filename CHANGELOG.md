@@ -2,6 +2,18 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.7] - 2026-11-08
+
+### Added
+- `scripts/setup.sh`：首次配置一条命令（装自带 adapter + 环境自检），解决"装完不知道还要做什么"。
+- **fail-closed 前置检查**：`new-job.sh` 在写 job 前毫秒级校验命令/adapter/节目 id，
+  缺任何一项**直接拒绝建 job** 并只输出一条修复命令；`worker.py` 开跑前再校验一次
+  （`ADAPTER_MISSING` / `MISSING_BINARY`，带具体修复命令）。
+
+### Why
+skill 安装时平台不允许执行代码，因此无法"自动注册 adapter"。改用"入口阻断 + 明确修复命令"
+保证用户和 agent 一定会在正确的位置发现它，而不是跑到 generating/uploading 才失败。
+
 ## [0.1.6] - 2026-11-07
 
 ### Added

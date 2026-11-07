@@ -46,6 +46,7 @@ from typing import Any, Dict, List, Optional, Tuple
 # 配置
 # --------------------------------------------------------------------------
 
+SKILL_DIR = Path(__file__).resolve().parent.parent
 ROOT = Path(os.environ.get("YT2PODCAST_ROOT", "~/.openclaw/workspace/yt2podcast")).expanduser()
 JOBS_DIR = ROOT / "jobs"
 
@@ -115,7 +116,7 @@ def default_suggestion(code: str) -> str:
         "NEED_LOGIN": "在 Chrome 里重新登录对应站点(NotebookLM / 小宇宙主播后台),然后重跑该 job。",
         "AUTH_REQUIRED": "在 Chrome 里重新登录对应站点(NotebookLM / 小宇宙主播后台),然后重跑该 job。",
         "QUOTA_EXHAUSTED": "NotebookLM 每日音频生成配额已用尽,明天再重跑该 job。",
-        "ADAPTER_MISSING": "对应的 opencli adapter 还没装好,先完成 adapter 任务再重跑。",
+        "ADAPTER_MISSING": "配套的 opencli adapter 没装: 跑一次 bash scripts/setup.sh 即可(或 scripts/install-adapters.sh --install)。",
         "CMD_TIMEOUT": "外部命令超时,检查 Chrome 是否在前台运行、网络是否通畅,然后重跑该 job。",
         "SOURCE_PROCESS_TIMEOUT": "YouTube 源抽取超时,确认链接可访问(非会员/非地区限制)后重跑该 job。",
         "AUDIO_MISSING": "没拿到 NotebookLM 音频产物,确认配额与登录态后重跑该 job。",
@@ -953,6 +954,39 @@ def acquire_lock() -> Optional[Any]:
     return handle
 
 
+REQUIRED_ADAPTERS = [
+    "notebooklm/download-audio.js",
+    "xiaoyuzhou/upload.js",
+    "xiaoyuzhou/upload-status.js",
+]
+
+
+def preflight(job: Job) -> None:
+    """开跑前快速自检(毫秒级,不启浏览器):缺 adapter 就立刻停下并给修复命令。
+
+    为什么要 fail closed:跑到 generating/uploading 才发现 adapter 缺失,既浪费时间
+    又可能已经消耗了 NotebookLM 生成配额。
+    """
+    clis = Path(os.environ.get("OPENCLI_HOME", "~/.opencli")).expanduser() / "clis"
+    missing = [rel for rel in REQUIRED_ADAPTERS if not (clis / rel).is_file()]
+    fix = "bash %s/setup.sh" % SKILL_DIR
+    if missing:
+        raise StageError(
+            "ADAPTER_MISSING",
+            "缺少配套 adapter: %s" % ", ".join(missing),
+            hint="这些命令 opencli 官方基线里没有,由本 skill 自带",
+            suggestion="跑一次 %s(装 adapter + 环境自检)后重跑本 job" % fix,
+        )
+    bins = ["opencli", "ffmpeg", "ffprobe"]
+    absent = [b for b in bins if not shutil.which(b)]
+    if absent:
+        raise StageError(
+            "MISSING_BINARY",
+            "缺少命令行工具: %s" % ", ".join(absent),
+            suggestion="brew install ffmpeg / npm i -g @jackwener/opencli,再跑 %s" % fix,
+        )
+
+
 def run_pipeline(job: Job, notify: bool = True) -> int:
     data = job.data
     if data.get("stage") == "done":
@@ -962,6 +996,7 @@ def run_pipeline(job: Job, notify: bool = True) -> int:
     job.history("start", stage=data.get("stage"))
     job.save()
     log(job, "代理: %s" % (system_proxy() or "未检测到(直连)"))
+    preflight(job)
 
     for stage in STAGES:
         if data.get("stage") == "done":
