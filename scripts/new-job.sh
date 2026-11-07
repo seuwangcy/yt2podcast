@@ -94,11 +94,19 @@ require_ready() {
     fix="bash $SCRIPT_DIR/setup.sh"
     python3 - "$fix" "${missing[@]}" <<'PY'
 import json, sys
+fix = sys.argv[1]
 print(json.dumps({
     "ok": False,
     "error": "前置条件未满足,已拒绝建 job(避免白跑一趟、白耗生成配额)",
     "missing": sys.argv[2:],
-    "fix": sys.argv[1],
+    "fix": fix,
+    # agent 可自主执行的安全修复动作(幂等、只写本机 opencli 目录、不改用户配置)
+    "repair": {
+        "safe": True,
+        "cmd": fix,
+        "then": "重新执行同一条 new-job.sh 命令",
+        "note": "安装自带 adapter 并做环境自检;不会安装全局包、不会登录账号",
+    },
 }, ensure_ascii=False))
 PY
     exit 4

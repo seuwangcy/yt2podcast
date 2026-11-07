@@ -191,7 +191,38 @@ worker 结束时执行 `openclaw system event --text "yt2podcast {...}" --mode n
 | `PODCAST_ID_MISSING` | 没给小宇宙节目 id | `--podcast` 或 `YT2PODCAST_PODCAST_ID` |
 | `FFMPEG_FAILED` | 转码失败，已降级用 wav 上传 | 想听 m4a 就重跑一次 |
 
-失败后**不要自动重试**（白耗配额），先按建议处理再 `--rerun`。
+失败后**不要盲目自动重试**（白耗配额）；按下面的「自主修复策略」判断哪些能自己修。
+
+## 自主修复策略（agent 能自己修到什么程度）
+
+失败载荷里有 `repair` 字段时，按 `repair.safe` 决策：
+
+- **`repair.safe: true`** → 直接执行 `repair.cmd`，然后按 `repair.then` 指定的动作重试一次。
+  典型："缺 adapter" → 跑 `scripts/setup.sh` → 重新执行同一条 `new-job.sh`。
+- **`repair.safe: false`**，或没有 `repair` → **停下来告诉用户**，附上 `suggestion`
+  和需要用户做的决定（凭据、节目 id、是否公开发布等）。
+
+### 允许自动执行（幂等，只动本机 skill / opencli 目录，不装全局包、不登录账号）
+
+- `bash {baseDir}/scripts/setup.sh`（装自带 adapter + 自检）
+- `bash {baseDir}/scripts/install-adapters.sh --install`（仅补 adapter）
+- `python3 {baseDir}/scripts/resume-stalled.py --resume`（卡住续跑）
+- `bash {baseDir}/scripts/doctor.sh`（诊断，只读）
+- `python3 {baseDir}/scripts/worker.py <job_id>`（按 suggestion 续跑，非配额类错误）
+
+### 必须交回用户（禁止代劳）
+
+- 安装全局包：`npm i -g …`、`brew install …`
+- 登录 / 扫码 / 提供密码（`NEED_LOGIN`）
+- 猜或编造小宇宙节目 id（`PODCAST_ID_MISSING`）
+- 公开发布：`--publish` / `YT2PODCAST_ALLOW_PUBLISH=1`（`PUBLISH_NOT_ALLOWED`）
+- 改用户的代理/VPN 配置（网络问题只给配置建议，不动手）
+- 可能消耗生成配额的重跑（`QUOTA_EXHAUSTED`）
+
+### 重试纪律
+
+- 每次失败最多「自动修复 + 重试」**一轮**；同一个 job 连续两次同类错误就停手，报给用户。
+- 修完必须在结果消息里用一句话说明**你修了什么**（例如"发现缺 adapter，已自动安装后重跑"），不要静默。
 
 ## 网络代理（国内必看）
 

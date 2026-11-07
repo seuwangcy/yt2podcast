@@ -2,6 +2,15 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.1.8] - 2026-11-08
+
+### Added
+- **错误载荷新增 `repair` 字段**：`{"safe": bool, "cmd": "...", "then": "...", "note": "..."}`。
+  `new-job.sh` 的入口阻断与 `worker.py` 的 `StageError` 都会带上，agent 可据此自主修复。
+- 新增「自主修复策略」章节：白名单（setup / install-adapters / resume-stalled / doctor /
+  非配额类重跑，safe=true 可直接执行）与黑名单（装全局包、登录、猜节目 id、公开发布、改代理、
+  配额外重生成），以及"每次失败最多自动修一轮、必须说明修了什么"的重试纪律。
+
 ## [0.1.7] - 2026-11-08
 
 ### Added

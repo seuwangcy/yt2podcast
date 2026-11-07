@@ -95,20 +95,55 @@ class StageError(Exception):
     """带 code/hint/suggestion 的阶段错误,方便失败时给出人工建议。"""
 
     def __init__(self, code: str, message: str, hint: Optional[str] = None,
-                 suggestion: Optional[str] = None) -> None:
+                 suggestion: Optional[str] = None,
+                 repair: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.hint = hint
         self.suggestion = suggestion or default_suggestion(code)
+        # repair: agent 可自主执行的安全修复动作
+        #   {"safe": bool, "cmd": str, "then": str, "note": str}
+        # safe=True 表示幂等、只动本机 opencli/skill 目录、不装全局包、不登录账号,
+        # agent 可以直接跑完再重试一次;sae=False 必须交回用户。
+        self.repair = repair or default_repair(code)
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        payload = {
             "code": self.code,
             "message": self.message,
             "hint": self.hint,
             "suggestion": self.suggestion,
         }
+        if self.repair:
+            payload["repair"] = self.repair
+        return payload
+
+
+def default_repair(code: str) -> Optional[Dict[str, Any]]:
+    """按错误码给出 agent 能不能自己修的判断(见 SKILL.md「自主修复策略」)。"""
+    setup = "bash %s/scripts/setup.sh" % SKILL_DIR
+    if code in ("ADAPTER_MISSING", "NOTEBOOKLM_UNAVAILABLE"):
+        return {
+            "safe": True,
+            "cmd": setup,
+            "then": "重跑同一个 job(worker.py <job_id>)",
+            "note": "只安装/校验本机 adapter,不改用户配置",
+        }
+    if code == "PENDING_STALLED":
+        return {
+            "safe": True,
+            "cmd": "python3 %s/scripts/resume-stalled.py --resume" % SKILL_DIR,
+            "then": "等待新的完成通知",
+            "note": "按落盘产物断点续跑,不重复消耗生成配额",
+        }
+    if code in ("MISSING_BINARY", "QUOTA_EXHAUSTED", "NEED_LOGIN", "PODCAST_ID_MISSING",
+                "PUBLISH_NOT_ALLOWED", "COMMAND_EXEC"):
+        return {
+            "safe": False,
+            "reason": "需要用户决策或提供凭据(安装全局包 / 登录账号 / 节目 id / 公开发布确认 / 网络代理)",
+        }
+    return None
 
 
 def default_suggestion(code: str) -> str:
@@ -969,13 +1004,19 @@ def preflight(job: Job) -> None:
     """
     clis = Path(os.environ.get("OPENCLI_HOME", "~/.opencli")).expanduser() / "clis"
     missing = [rel for rel in REQUIRED_ADAPTERS if not (clis / rel).is_file()]
-    fix = "bash %s/setup.sh" % SKILL_DIR
+    fix = "bash %s/scripts/setup.sh" % SKILL_DIR
     if missing:
         raise StageError(
             "ADAPTER_MISSING",
             "缺少配套 adapter: %s" % ", ".join(missing),
             hint="这些命令 opencli 官方基线里没有,由本 skill 自带",
             suggestion="跑一次 %s(装 adapter + 环境自检)后重跑本 job" % fix,
+            repair={
+                "safe": True,
+                "cmd": fix,
+                "then": "重跑本 job: python3 %s/scripts/worker.py %s" % (SKILL_DIR, job.get("job_id")),
+                "note": "只安装本机 adapter(自动备份旧文件),不装全局包、不登录账号",
+            },
         )
     bins = ["opencli", "ffmpeg", "ffprobe"]
     absent = [b for b in bins if not shutil.which(b)]
