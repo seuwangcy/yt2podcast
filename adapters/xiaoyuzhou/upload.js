@@ -241,9 +241,9 @@ export async function apiFetch(page, endpoint, { method = 'GET', body, podcastId
         const text = await response.text();
         let parsed = null;
         try { parsed = JSON.parse(text); } catch (error) { parsed = { __raw: text.slice(0, 400) }; }
-        return { ok: response.ok, status: response.status, payload: parsed };
+        return { ok: response.ok, httpStatus: response.status, body: parsed };
       } catch (error) {
-        return { ok: false, status: 0, payload: null, error: String((error && error.message) || error) };
+        return { ok: false, httpStatus: 0, body: null, error: String((error && error.message) || error) };
       }
     })()`;
     const result = await evaluate(page, script);
@@ -253,17 +253,17 @@ export async function apiFetch(page, endpoint, { method = 'GET', body, podcastId
     if (result.error) {
         throw new CommandExecutionError(`Xiaoyuzhou API call failed: ${result.error}`);
     }
-    const payload = result.payload;
+    const payload = result.body;
     if (!result.ok || isAuthFailure(payload)) {
-        if (result.status === 401 || result.status === 403 || isAuthFailure(payload)) {
+        if (result.httpStatus === 401 || result.httpStatus === 403 || isAuthFailure(payload)) {
             throw new AuthRequiredError(
                 PODCASTER_HOST,
-                `Xiaoyuzhou podcaster session is not valid (HTTP ${result.status})`,
+                `Xiaoyuzhou podcaster session is not valid (HTTP ${result.httpStatus})`,
                 `Open https://${PODCASTER_HOST}/ in Chrome, sign in to the podcaster backend, then retry.`,
             );
         }
         throw new CommandExecutionError(
-            `Xiaoyuzhou API ${endpoint} failed with HTTP ${result.status}`
+            `Xiaoyuzhou API ${endpoint} failed with HTTP ${result.httpStatus}`
             + (payload?.msg ? `: ${payload.msg}` : ''),
         );
     }
@@ -283,24 +283,24 @@ export async function assertLoggedIn(page) {
         let parsed = null;
         try { parsed = JSON.parse(text); } catch (error) { parsed = null; }
         return {
-          status: response.status,
-          code: parsed && parsed.code,
-          url: location.href,
-          hasLoginForm: !!document.querySelector('input[type="password"], form[action*="login"]'),
+          httpStatus: response.status,
+          errorCode: parsed && parsed.code,
+          pageUrl: location.href,
+          loginFormVisible: !!document.querySelector('input[type="password"], form[action*="login"]'),
         };
       } catch (error) {
-        return { status: 0, error: String((error && error.message) || error), url: location.href };
+        return { httpStatus: 0, error: String((error && error.message) || error), pageUrl: location.href };
       }
     })()`;
     const result = await evaluate(page, script);
-    if (!result || result.status === 401 || result.status === 403 || result.code === 401 || result.code === 403) {
+    if (!result || result.httpStatus === 401 || result.httpStatus === 403 || result.errorCode === 401 || result.errorCode === 403) {
         throw new AuthRequiredError(
             PODCASTER_HOST,
             'Xiaoyuzhou podcaster backend requires a signed-in session',
             `Open https://${PODCASTER_HOST}/ in Chrome, sign in (scan the QR code), then retry.`,
         );
     }
-    if (result.hasLoginForm || /\/login/.test(String(result.url || ''))) {
+    if (result.loginFormVisible || /\/login/.test(String(result.pageUrl || ''))) {
         throw new AuthRequiredError(
             PODCASTER_HOST,
             'Xiaoyuzhou podcaster backend redirected to the login page',

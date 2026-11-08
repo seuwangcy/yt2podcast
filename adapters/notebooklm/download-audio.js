@@ -286,19 +286,19 @@ async function fetchInPage(page, url, options = {}) {
     });
     return {
       ok: response.ok,
-      status: response.status,
-      body: await response.text(),
-      requestUrl,
-      finalUrl: response.url,
+      httpStatus: response.status,
+      responseBody: await response.text(),
+      requestedUrl: requestUrl,
+      resolvedUrl: response.url,
     };
   })()`);
     const raw = requirePlainObject(unwrapEvaluateResult(evaluated), 'RPC transport');
     return {
         ok: raw.ok === true,
-        status: Number(raw.status) || 0,
-        body: typeof raw.body === 'string' ? raw.body : '',
-        requestUrl: String(raw.requestUrl || ''),
-        finalUrl: String(raw.finalUrl || ''),
+        httpStatus: Number(raw.httpStatus) || 0,
+        responseBody: typeof raw.responseBody === 'string' ? raw.responseBody : '',
+        requestUrl: String(raw.requestedUrl || ''),
+        finalUrl: String(raw.resolvedUrl || ''),
     };
 }
 
@@ -316,13 +316,13 @@ export async function callRpc(page, rpcId, params) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
         body: requestBody,
     });
-    if (response.status === 401 || response.status === 403) {
-        throw new AuthRequiredError(NOTEBOOKLM_DOMAIN, `NotebookLM RPC returned auth error (${response.status})`);
+    if (response.httpStatus === 401 || response.httpStatus === 403) {
+        throw new AuthRequiredError(NOTEBOOKLM_DOMAIN, `NotebookLM RPC returned auth error (${response.httpStatus})`);
     }
     if (!response.ok) {
-        throw new CliError('NOTEBOOKLM_RPC', `NotebookLM RPC request failed with HTTP ${response.status}`, 'Retry from an already logged-in NotebookLM session.');
+        throw new CliError('NOTEBOOKLM_RPC', `NotebookLM RPC request failed with HTTP ${response.httpStatus}`, 'Retry from an already logged-in NotebookLM session.');
     }
-    return extractRpcResult(response.body, rpcId);
+    return extractRpcResult(response.responseBody, rpcId);
 }
 
 function authauthuserSafe(value) {
@@ -405,33 +405,33 @@ export function parseAudioArtifact(row) {
             mime: typeof variant[2] === 'string' ? variant[2] : null,
         }));
     return {
-        artifact_id: row[0],
-        title: typeof row[1] === 'string' ? row[1] : '',
-        type: typeof row[2] === 'number' ? row[2] : null,
-        status: typeof row[4] === 'number' ? row[4] : null,
-        status_label: ARTIFACT_STATUS_LABELS[typeof row[4] === 'number' ? row[4] : -1] || 'unknown',
-        language: typeof generation[4] === 'string' ? generation[4] : null,
-        duration_seconds: durationSeconds,
-        media,
-        audio_url: typeof options[2] === 'string' && /^https:\/\//.test(options[2]) ? options[2] : null,
+        artifactId: row[0],
+        artifactTitle: typeof row[1] === 'string' ? row[1] : '',
+        artifactType: typeof row[2] === 'number' ? row[2] : null,
+        artifactStatus: typeof row[4] === 'number' ? row[4] : null,
+        artifactStatusLabel: typeof row[4] === 'number' ? (ARTIFACT_STATUS_LABELS[row[4]] ?? null) : null,
+        artifactLanguage: typeof generation[4] === 'string' ? generation[4] : null,
+        artifactDurationSeconds: durationSeconds,
+        artifactMedia: media,
+        artifactAudioUrl: typeof options[2] === 'string' && /^https:\/\//.test(options[2]) ? options[2] : null,
     };
 }
 
 /** Prefer the progressive audio file over the HLS/DASH streaming manifests. */
 export function pickAudioUrl(artifact) {
-    const progressive = artifact.media.find((item) => item.kind === 1 && item.mime);
+    const progressive = artifact.artifactMedia.find((item) => item.kind === 1 && item.mime);
     if (progressive) {
         return progressive.url;
     }
-    const anyAudio = artifact.media.find((item) => item.mime && item.mime.startsWith('audio/'));
+    const anyAudio = artifact.artifactMedia.find((item) => item.mime && item.mime.startsWith('audio/'));
     if (anyAudio) {
         return anyAudio.url;
     }
-    const notStream = artifact.media.find((item) => item.kind === 1 || item.kind === 4);
+    const notStream = artifact.artifactMedia.find((item) => item.kind === 1 || item.kind === 4);
     if (notStream) {
         return notStream.url;
     }
-    return artifact.audio_url || artifact.media[0]?.url || '';
+    return artifact.artifactAudioUrl || artifact.artifactMedia[0]?.url || '';
 }
 
 function cookieMatchesHost(cookieDomain, hostname) {
@@ -546,7 +546,7 @@ export async function ensureWavContainer(sourcePath, destPath) {
         return { converted: false, error: result.stderr.trim().split('\n').slice(-1)[0] || 'ffmpeg failed' };
     }
     const stat = await fs.promises.stat(destPath);
-    return { converted: true, bytes: stat.size };
+    return { converted: true, byteSize: stat.size };
 }
 
 async function sleepSeconds(page, seconds) {
@@ -593,10 +593,10 @@ async function triggerGeneration(page, notebookId) {
     ];
     const result = await callRpc(page, CREATE_ARTIFACT_RPC_ID, args);
     const rows = parseArtifactRows(result);
-    const created = rows.map(parseAudioArtifact).find((row) => row && row.type === ARTIFACT_TYPE_AUDIO_OVERVIEW);
+    const created = rows.map(parseAudioArtifact).find((row) => row && row.artifactType === ARTIFACT_TYPE_AUDIO_OVERVIEW);
     return {
-        artifact_id: created?.artifact_id || null,
-        source_count: sourceIds.length,
+        triggeredArtifactId: created?.artifact_id ?? null,
+        triggeredSourceCount: sourceIds.length,
     };
 }
 
@@ -616,7 +616,7 @@ cli({
         { name: 'poll', type: 'int', default: DEFAULT_POLL_SECONDS, help: `Seconds between readiness checks (default ${DEFAULT_POLL_SECONDS})` },
         { name: 'generate', type: 'boolean', help: 'Trigger an Audio Overview generation when the notebook has none yet' },
     ],
-    columns: ['notebook_id', 'file', 'bytes', 'status', 'artifact_id', 'title', 'duration_seconds', 'language'],
+    columns: ['notebook_id', 'file', 'bytes', 'status', 'artifact_id', 'title', 'duration_seconds', 'language', 'content_type', 'converted_to_wav'],
     func: async (page, kwargs) => {
         const notebookId = parseNotebookTarget(kwargs.notebook);
         const timeoutSeconds = requirePositiveInt(kwargs.timeout, 'timeout', DEFAULT_TIMEOUT_SECONDS);
@@ -633,7 +633,7 @@ cli({
         }
 
         let artifacts = await listArtifacts(page, notebookId);
-        let audio = artifacts.find((row) => row.type === ARTIFACT_TYPE_AUDIO_OVERVIEW) || null;
+        let audio = artifacts.find((row) => row.artifactType === ARTIFACT_TYPE_AUDIO_OVERVIEW) || null;
 
         if (!audio) {
             if (!kwargs.generate) {
@@ -647,43 +647,43 @@ cli({
             let lastStatus = null;
             while (Date.now() < deadline) {
                 artifacts = await listArtifacts(page, notebookId);
-                audio = artifacts.find((row) => row.type === ARTIFACT_TYPE_AUDIO_OVERVIEW) || null;
+                audio = artifacts.find((row) => row.artifactType === ARTIFACT_TYPE_AUDIO_OVERVIEW) || null;
                 if (audio) {
-                    lastStatus = audio.status_label;
-                    if (audio.status === ARTIFACT_STATUS_READY) {
+                    lastStatus = audio.artifactStatusLabel;
+                    if (audio.artifactStatus === ARTIFACT_STATUS_READY) {
                         break;
                     }
                 }
                 await sleepSeconds(page, Math.min(pollSeconds, Math.max(1, Math.round((deadline - Date.now()) / 1000))));
             }
-            if (!audio || audio.status !== ARTIFACT_STATUS_READY) {
+            if (!audio || audio.artifactStatus !== ARTIFACT_STATUS_READY) {
                 throw new CliError(
                     'NOTEBOOKLM_AUDIO_TIMEOUT',
-                    `Audio Overview for notebook ${notebookId} was not ready after ${timeoutSeconds}s (last status: ${lastStatus || 'unknown'})`,
+                    `Audio Overview for notebook ${notebookId} was not ready after ${timeoutSeconds}s (last status: ${lastStatus ?? 'not observed'})`,
                     'Increase --timeout, or check the NotebookLM UI for a quota or generation error.',
                 );
             }
-            if (triggered.artifact_id && audio.artifact_id && triggered.artifact_id !== audio.artifact_id) {
-                audio = artifacts.find((row) => row.artifact_id === triggered.artifact_id) || audio;
+            if (triggered.triggeredArtifactId && audio.artifactId && triggered.triggeredArtifactId !== audio.artifactId) {
+                audio = artifacts.find((row) => row.artifactId === triggered.triggeredArtifactId) || audio;
             }
         }
 
         const deadline = Date.now() + timeoutSeconds * 1000;
-        while (audio.status !== ARTIFACT_STATUS_READY && Date.now() < deadline) {
+        while (audio.artifactStatus !== ARTIFACT_STATUS_READY && Date.now() < deadline) {
             await sleepSeconds(page, Math.min(pollSeconds, Math.max(1, Math.round((deadline - Date.now()) / 1000))));
             artifacts = await listArtifacts(page, notebookId);
-            const refreshed = artifacts.find((row) => row.artifact_id === audio.artifact_id);
+            const refreshed = artifacts.find((row) => row.artifactId === audio.artifactId);
             if (refreshed) {
                 audio = refreshed;
             }
             else {
-                audio = artifacts.find((row) => row.type === ARTIFACT_TYPE_AUDIO_OVERVIEW) || audio;
+                audio = artifacts.find((row) => row.artifactType === ARTIFACT_TYPE_AUDIO_OVERVIEW) || audio;
             }
         }
-        if (audio.status !== ARTIFACT_STATUS_READY) {
+        if (audio.artifactStatus !== ARTIFACT_STATUS_READY) {
             throw new CliError(
                 'NOTEBOOKLM_AUDIO_TIMEOUT',
-                `Audio Overview for notebook ${notebookId} was not ready after ${timeoutSeconds}s (last status: ${audio.status_label})`,
+                `Audio Overview for notebook ${notebookId} was not ready after ${timeoutSeconds}s (last status: ${audio.artifactStatusLabel ?? 'not observed'})`,
                 'Increase --timeout, or check the NotebookLM UI for a quota or generation error.',
             );
         }
@@ -705,7 +705,7 @@ cli({
             await fs.promises.rm(rawPath, { force: true });
             if (convertedResult.converted) {
                 converted = true;
-                bytes = convertedResult.bytes;
+                bytes = convertedResult.byteSize;
                 contentType = 'audio/wav';
             }
             else {
@@ -721,10 +721,10 @@ cli({
             file: outputPath,
             bytes,
             status: 'done',
-            artifact_id: audio.artifact_id,
-            title: audio.title,
-            duration_seconds: audio.duration_seconds,
-            language: audio.language,
+            artifact_id: audio.artifactId,
+            title: audio.artifactTitle,
+            duration_seconds: audio.artifactDurationSeconds,
+            language: audio.artifactLanguage,
             content_type: contentType,
             converted_to_wav: converted,
         }];

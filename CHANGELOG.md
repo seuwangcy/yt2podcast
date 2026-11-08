@@ -2,6 +2,14 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.4] - 2026-11-08
+
+### Changed
+- 内置 adapter 与上游 PR (#2792) 对齐：内部传输字段更名，避免与命令输出列重名
+  （`httpStatus` / `responseBody` / `pageUrl` / `errorCode` / `loginFormVisible` / `artifact*` 系列），
+  修掉上游 `silent-column-drop` 与 `silent-sentinel` 两个门禁告警；行为不变。
+- `download-audio` 的 `columns` 补上实际返回的 `content_type`、`converted_to_wav`。
+
 ## [0.2.3] - 2026-11-08
 
 ### Added
